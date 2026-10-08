@@ -29,7 +29,7 @@ States: collapsed → drop zone → compose → library → detail, plus "ears" 
 Pointer tracking uses NSEvent mouse monitors (no Accessibility permission) and only polls while expanded, so it's idle at rest.
 Without a notch (external display, clamshell) a small notch-shaped pill appears at the top centre of the main display.
 
-Menu bar item: open inbox, save image from clipboard, drag/copy note options, Launch at Login, show library in Finder.
+Settings live inside the notch (gear button in the library, or "Settings…" in the menu bar menu / reopening the app): accent colour, panel colour (stays black under the notch), panel size (Compact / Regular / Large), open on hover or click, hover delay, haptic feedback, drag-out note options, remove screenshots after sending them (off by default; the dragged copy is kept a day so late readers like Claude Code in Terminal still find it), automatic deletion after a day/week/month (default Never; removed items go to the Trash), Open at Login, menu bar icon, and which display to use. Stored in UserDefaults (`AppSettings` in `Preferences.swift`).
 
 ## Notes on drag-and-drop targets
 

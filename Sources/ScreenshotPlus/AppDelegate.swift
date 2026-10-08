@@ -42,6 +42,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
     }
 
+    /// Opening the app again (Finder, Spotlight, Launchpad) while it's running shows
+    /// Settings, which is the way back if the menu bar icon was hidden.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        notch?.openSettings()
+        return false
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         store?.flush()
     }

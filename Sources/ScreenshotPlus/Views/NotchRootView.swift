@@ -13,7 +13,7 @@ struct NotchRootView: View {
 
         ZStack(alignment: .top) {
             shape
-                .fill(Color.black)
+                .fill(surfaceFill)
                 .shadow(color: .black.opacity(model.mode.isExpanded ? 0.5 : 0), radius: 16, y: 8)
 
             ZStack(alignment: .top) {
@@ -30,7 +30,24 @@ struct NotchRootView: View {
         .animation(.notch, value: model.mode)
         .animation(.notch, value: model.draft != nil)
         .animation(.notch, value: model.metrics)
+        .animation(.notch, value: AppSettings.shared.panelSize)
+        .animation(.easeInOut(duration: 0.3), value: AppSettings.shared.surface)
         .animation(.easeOut(duration: 0.2), value: model.notice)
+    }
+
+    /// Black under the notch, easing into the chosen panel colour toward the bottom.
+    private var surfaceFill: LinearGradient {
+        let tint = AppSettings.shared.surface.tint
+        let expanded = model.mode.isExpanded
+        let notchFraction = model.notchSize.height / max(model.shapeSize.height, 1)
+        return LinearGradient(
+            stops: [
+                .init(color: .black, location: 0),
+                .init(color: .black, location: expanded ? notchFraction : 1),
+                .init(color: expanded ? tint : .black, location: 1),
+            ],
+            startPoint: .top, endPoint: .bottom
+        )
     }
 
     @ViewBuilder private var content: some View {
@@ -65,6 +82,11 @@ struct NotchRootView: View {
 
         case .library:
             LibraryView(model: model)
+                .padding(.top, notch.height)
+                .transition(.notchContent)
+
+        case .settings:
+            SettingsView(model: model)
                 .padding(.top, notch.height)
                 .transition(.notchContent)
 
@@ -107,7 +129,7 @@ private struct ToastEars: View {
     let notch: CGSize
 
     var body: some View {
-        NotchEars(notchWidth: notch.width, earWidth: NotchModel.toastEarWidth, height: notch.height) {
+        NotchEars(notchWidth: notch.width, earWidth: toast.earWidth, height: notch.height) {
             HStack {
                 Image(systemName: toast.symbol)
                     .font(.system(size: 14, weight: .semibold))

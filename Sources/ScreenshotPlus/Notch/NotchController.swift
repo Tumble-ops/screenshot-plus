@@ -21,6 +21,7 @@ final class NotchController: NSObject, NSWindowDelegate {
     private var hoverWork: DispatchWorkItem?
     private var collapseWork: DispatchWorkItem?
     private var focusRestoreWork: DispatchWorkItem?
+    private var expiryTimer: Timer?
 
     /// Drag pasteboard change count at the last mouse-down; a different value while
     /// the mouse is dragged means a drag-and-drop session is in progress.
@@ -44,7 +45,8 @@ final class NotchController: NSObject, NSWindowDelegate {
 
         sensor.sensorView.dropHandler = DropHandler(model: model)
         sensor.sensorView.onHover = { [weak self] inside in
-            guard let self, inside, !self.model.mode.isExpanded, NSEvent.pressedMouseButtons == 0 else { return }
+            guard let self, inside, AppSettings.shared.openOnHover,
+                  !self.model.mode.isExpanded, NSEvent.pressedMouseButtons == 0 else { return }
             self.scheduleHoverOpen()
         }
         sensor.sensorView.onClick = { [weak self] in
@@ -60,9 +62,21 @@ final class NotchController: NSObject, NSWindowDelegate {
         model.onModeChange = { [weak self] old, new in self?.modeChanged(from: old, to: new) }
         model.isPointerInsideSurface = { [weak self] in self?.pointerInsideShape(margin: 14) ?? false }
         installMonitors()
+
+        // Expiry: check at launch, then every 15 minutes (a tolerant timer, so it's free when idle).
+        model.purgeExpired()
+        let timer = Timer(timeInterval: 15 * 60, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.model.purgeExpired() }
+        }
+        timer.tolerance = 120
+        RunLoop.main.add(timer, forMode: .common)
+        expiryTimer = timer
         NotificationCenter.default.addObserver(
             self, selector: #selector(screenParametersChanged),
             name: NSApplication.didChangeScreenParametersNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(settingsChanged(_:)), name: AppSettings.didChange, object: nil
         )
         NSWorkspace.shared.notificationCenter.addObserver(
             self, selector: #selector(activeSpaceChanged),
@@ -179,6 +193,9 @@ final class NotchController: NSObject, NSWindowDelegate {
         case .leftMouseDown, .rightMouseDown:
             dragCountAtMouseDown = NSPasteboard(name: .drag).changeCount
             dragCheck = nil
+            #if DEBUG
+            if debugFreeze { break }
+            #endif
             // A click anywhere else closes the panel.
             if isGlobal, model.mode.isExpanded, model.mode != .dropZone, !pointerInsideShape() {
                 model.collapse()
@@ -242,7 +259,7 @@ final class NotchController: NSObject, NSWindowDelegate {
         case .collapsed, .toast:
             if imageDrag && dragApproachRect.contains(point) {
                 model.mode = .dropZone
-            } else if !buttonDown && hoverRect.contains(point) {
+            } else if !buttonDown && AppSettings.shared.openOnHover && hoverRect.contains(point) {
                 scheduleHoverOpen()
             } else {
                 cancelHover()
@@ -258,7 +275,7 @@ final class NotchController: NSObject, NSWindowDelegate {
                 scheduleCollapse(after: 0.35)
             }
 
-        case .compose, .library, .detail:
+        case .compose, .library, .detail, .settings:
             if imageDrag && model.mode != .compose && shapeRect().contains(point) {
                 model.mode = .dropZone
                 return
@@ -291,7 +308,7 @@ final class NotchController: NSObject, NSWindowDelegate {
             self.model.open()
         }
         hoverWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + AppSettings.shared.hoverDelay.seconds, execute: work)
     }
 
     private func cancelHover() {
@@ -360,6 +377,20 @@ final class NotchController: NSObject, NSWindowDelegate {
         let metrics = NotchMetrics.measure(screen)
         if metrics != model.metrics { model.metrics = metrics }
         layoutPanel()
+    }
+
+    @objc private func settingsChanged(_ note: Notification) {
+        switch note.userInfo?["key"] as? String {
+        case "display": screenParametersChanged()
+        case "expiry": model.purgeExpired()
+        default: break
+        }
+    }
+
+    /// Opens the notch straight to Settings (menu bar "Settings…").
+    func openSettings() {
+        model.awaitingPointerEntry = true
+        model.mode = .settings
     }
 
     @objc private func activeSpaceChanged() {

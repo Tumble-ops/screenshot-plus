@@ -25,7 +25,7 @@ enum NotePill {
 
             if let symbol = NSImage(systemSymbolName: "text.bubble.fill", accessibilityDescription: nil)?
                 .withSymbolConfiguration(.init(pointSize: 10, weight: .semibold)
-                    .applying(.init(paletteColors: [NSColor(red: 1, green: 0.78, blue: 0.32, alpha: 1)]))) {
+                    .applying(.init(paletteColors: [MainActor.assumeIsolated { AppSettings.shared.accent.nsColor }]))) {
                 let s = symbol.size
                 symbol.draw(in: NSRect(x: 10, y: (rect.height - s.height) / 2, width: s.width, height: s.height))
             }

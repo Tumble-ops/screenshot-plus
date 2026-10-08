@@ -6,11 +6,13 @@ struct LibraryView: View {
     let model: NotchModel
     @FocusState private var searchFocused: Bool
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: 4)
 
     var body: some View {
         let size = model.shapeSize(for: .library)
         let shots = model.filteredShots
+        let columnCount = AppSettings.shared.panelSize.libraryColumns
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: columnCount)
+        let cardWidth = (size.width - 2 * Layout.sideInset - 4 - 12 * CGFloat(columnCount - 1)) / CGFloat(columnCount)
 
         VStack(spacing: 10) {
             header(count: shots.count)
@@ -25,7 +27,7 @@ struct LibraryView: View {
                 ScrollView(.vertical) {
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(shots) { shot in
-                            ShotCard(model: model, shot: shot)
+                            ShotCard(model: model, shot: shot, thumbnailHeight: (cardWidth * 0.62).rounded())
                         }
                     }
                     .padding(.horizontal, 2)
@@ -39,7 +41,7 @@ struct LibraryView: View {
                 )
             }
         }
-        .padding(EdgeInsets(top: 8, leading: 18, bottom: 6, trailing: 18))
+        .padding(EdgeInsets(top: 8, leading: Layout.sideInset, bottom: 6, trailing: Layout.sideInset))
         .frame(width: size.width, height: size.height - model.notchSize.height, alignment: .top)
     }
 
@@ -83,6 +85,9 @@ struct LibraryView: View {
             IconButton(symbol: "doc.on.clipboard", help: "Save the image on the clipboard") {
                 model.pasteFromClipboard()
             }
+            IconButton(symbol: "gearshape", help: "Settings") {
+                model.mode = .settings
+            }
         }
     }
 
@@ -107,6 +112,7 @@ struct LibraryView: View {
 struct ShotCard: View {
     let model: NotchModel
     let shot: Shot
+    var thumbnailHeight: CGFloat = 80
     @State private var hovering = false
 
     var body: some View {
@@ -124,7 +130,7 @@ struct ShotCard: View {
                         Palette.surface
                     }
                 }
-                .frame(height: 80)
+                .frame(height: thumbnailHeight)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .overlay(

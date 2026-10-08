@@ -11,19 +11,20 @@ enum NotchMode: Equatable {
     case compose
     case library
     case detail(UUID)
+    case settings
     /// Small Dynamic-Island-style confirmation in the notch's "ears".
     case toast(Toast)
 
     var isExpanded: Bool {
         switch self {
-        case .compose, .library, .detail, .dropZone: return true
+        case .compose, .library, .detail, .dropZone, .settings: return true
         case .collapsed, .toast: return false
         }
     }
 }
 
 struct Toast: Equatable {
-    enum Kind { case saved, noteCopied, imageCopied, deleted }
+    enum Kind { case saved, noteCopied, imageCopied, deleted, sent, sentNoteCopied }
     var kind: Kind
     var id = UUID()
 
@@ -33,8 +34,12 @@ struct Toast: Equatable {
         case .noteCopied: return "doc.on.clipboard.fill"
         case .imageCopied: return "photo.on.rectangle"
         case .deleted: return "trash.fill"
+        case .sent, .sentNoteCopied: return "tray.and.arrow.up.fill"
         }
     }
+
+    /// Width of each "ear" beside the notch, wide enough for the text.
+    var earWidth: CGFloat { kind == .sentNoteCopied ? 156 : 104 }
 
     var text: String {
         switch kind {
@@ -42,6 +47,8 @@ struct Toast: Equatable {
         case .noteCopied: return "Note copied"
         case .imageCopied: return "Copied"
         case .deleted: return "Deleted"
+        case .sent: return "Sent & removed"
+        case .sentNoteCopied: return "Removed · note copied"
         }
     }
 
@@ -50,6 +57,7 @@ struct Toast: Equatable {
         case .saved: return Color(red: 0.30, green: 0.85, blue: 0.47)
         case .noteCopied, .imageCopied: return Color(red: 0.38, green: 0.66, blue: 1.0)
         case .deleted: return Color(white: 0.75)
+        case .sent, .sentNoteCopied: return Color(red: 0.38, green: 0.66, blue: 1.0)
         }
     }
 }
@@ -81,7 +89,9 @@ final class NotchModel {
     }
     var metrics: NotchMetrics
     var draft: Draft?
-    var isDropTargeted = false
+    var isDropTargeted = false {
+        didSet { if isDropTargeted && !oldValue { AppSettings.shared.hapticTap() } }
+    }
     var isImporting = false
     var searchText = ""
     var isDraggingOut = false
@@ -113,32 +123,43 @@ final class NotchModel {
 
     /// Size of the black notch surface for a mode.
     func shapeSize(for mode: NotchMode) -> CGSize {
+        shapeSize(for: mode, scale: AppSettings.shared.panelSize.scale)
+    }
+
+    func shapeSize(for mode: NotchMode, scale: CGFloat) -> CGSize {
         let notch = metrics.notchSize
+        func panel(_ width: CGFloat, _ height: CGFloat) -> CGSize {
+            CGSize(width: (width * scale).rounded(), height: notch.height + (height * scale).rounded())
+        }
         switch mode {
         case .collapsed:
             if draft != nil {
                 return CGSize(width: notch.width + 2 * Self.draftEarWidth, height: notch.height)
             }
             return notch
-        case .toast:
-            return CGSize(width: notch.width + 2 * Self.toastEarWidth, height: notch.height)
+        case .toast(let toast):
+            return CGSize(width: notch.width + 2 * toast.earWidth, height: notch.height)
         case .dropZone:
-            return CGSize(width: 420, height: notch.height + 136)
+            return CGSize(width: 444, height: notch.height + 136)
         case .compose:
-            return CGSize(width: 480, height: notch.height + 300)
+            return panel(504, 300)
         case .library:
-            return CGSize(width: 604, height: notch.height + 336)
+            return panel(628, 336)
+        case .settings:
+            return panel(636, 366)
         case .detail:
-            return CGSize(width: 640, height: notch.height + 316)
+            return panel(664, 316)
         }
     }
 
     var shapeSize: CGSize { shapeSize(for: mode) }
 
-    /// Largest surface any state can need; the panel is sized to fit it.
+    /// Largest surface any state can need at any panel size; the window is sized to fit it,
+    /// so changing the size setting never has to move the window.
     var maximumShapeSize: CGSize {
-        let modes: [NotchMode] = [.dropZone, .compose, .library, .detail(UUID()), .toast(Toast(kind: .saved))]
-        return modes.map { shapeSize(for: $0) }.reduce(.zero) {
+        let modes: [NotchMode] = [.dropZone, .compose, .library, .settings, .detail(UUID()), .toast(Toast(kind: .sentNoteCopied))]
+        let scales = AppSettings.PanelSize.allCases.map(\.scale)
+        return modes.flatMap { mode in scales.map { shapeSize(for: mode, scale: $0) } }.reduce(.zero) {
             CGSize(width: max($0.width, $1.width), height: max($0.height, $1.height))
         }
     }
@@ -167,7 +188,7 @@ final class NotchModel {
 
     func handleEscape() {
         switch mode {
-        case .detail: mode = .library
+        case .detail, .settings: mode = .library
         case .compose: cancelDraft()
         case .library where !searchText.isEmpty: searchText = ""
         default: collapse()
@@ -228,6 +249,7 @@ final class NotchModel {
     func saveDraft() {
         guard let draft else { return }
         store.add(draft.images, note: draft.note)
+        AppSettings.shared.hapticTap()
         self.draft = nil
         searchText = ""
         showToast(.saved)
@@ -242,6 +264,20 @@ final class NotchModel {
     var draftTitlePreview: String {
         if let draft, let title = TitleGenerator.title(for: draft.note) { return title }
         return "Auto-named with date"
+    }
+
+    // MARK: - Expiry
+
+    /// Trashes screenshots past the expiry chosen in Settings (no-op for "Never").
+    func purgeExpired() {
+        guard let maxAge = AppSettings.shared.expiry.maxAge else { return }
+        let removed = store.deleteShots(olderThan: Date().addingTimeInterval(-maxAge))
+        guard removed > 0 else { return }
+        if case .detail(let id) = mode, store.shot(id) == nil { mode = .library }
+        if mode.isExpanded {
+            showNotice("clock.arrow.circlepath", removed == 1 ? "1 expired screenshot moved to Trash"
+                                                              : "\(removed) expired screenshots moved to Trash")
+        }
     }
 
     // MARK: - Using saved screenshots
@@ -289,23 +325,25 @@ final class NotchModel {
     func dragPayload(for shot: Shot, image: NSImage) -> DragSource.Payload {
         let url = store.exportURL(for: shot)
         var payload = DragSource.Payload(writer: url as NSURL, image: image)
-        if Preferences.includeNoteTextInDrag, shot.hasNote {
+        if AppSettings.shared.includeNoteTextInDrag, shot.hasNote {
             payload.companions = [(shot.note as NSString, NotePill.image(for: shot.note))]
         }
         return payload
     }
 
     private var noteCopiedDuringDrag = false
+    private var draggedShotID: UUID?
 
     func dragDidBegin(_ shot: Shot) {
         isDraggingOut = true
         noteCopiedDuringDrag = false
-        guard Preferences.copyNoteOnDrag, shot.hasNote else { return }
+        draggedShotID = shot.id
+        guard AppSettings.shared.copyNoteOnDrag, shot.hasNote else { return }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(shot.note, forType: .string)
         noteCopiedDuringDrag = true
-        showNotice("doc.on.clipboard.fill", Preferences.includeNoteTextInDrag
+        showNotice("doc.on.clipboard.fill", AppSettings.shared.includeNoteTextInDrag
                    ? "Note attached · also copied for ⌘V"
                    : "Note copied — paste with ⌘V")
     }
@@ -314,6 +352,14 @@ final class NotchModel {
         isDraggingOut = false
         // Dropped back onto the panel (or cancelled over it): stay open.
         guard operation != [] || !isPointerInsideSurface() else { return }
+
+        // Delivered to another app and the user wants sent screenshots cleared out.
+        if operation != [], AppSettings.shared.removeAfterDragOut, let id = draggedShotID {
+            draggedShotID = nil
+            store.delete(id, keepDragCopy: true)
+            showToast(noteCopiedDuringDrag ? .sentNoteCopied : .sent)
+            return
+        }
         if noteCopiedDuringDrag {
             showToast(.noteCopied)
         } else if !isPointerInsideSurface() {

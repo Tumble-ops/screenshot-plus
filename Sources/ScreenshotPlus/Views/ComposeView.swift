@@ -10,7 +10,7 @@ struct ComposeView: View {
 
         VStack(spacing: 12) {
             preview
-                .frame(height: 158)
+                .frame(maxHeight: .infinity)
 
             noteField
 
@@ -45,7 +45,7 @@ struct ComposeView: View {
                 .buttonStyle(PillButtonStyle(prominent: true))
             }
         }
-        .padding(EdgeInsets(top: 8, leading: 16, bottom: 16, trailing: 16))
+        .padding(EdgeInsets(top: 8, leading: Layout.sideInset, bottom: 16, trailing: Layout.sideInset))
         .frame(width: size.width, height: size.height - model.notchSize.height, alignment: .top)
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { noteFocused = true }

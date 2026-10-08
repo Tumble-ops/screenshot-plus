@@ -5,6 +5,13 @@ extension Animation {
     static let notch = Animation.spring(response: 0.42, dampingFraction: 0.8)
 }
 
+enum Layout {
+    /// Horizontal content inset from the panel frame. The notch's concave top corners
+    /// pull the visible edge in by ~14 pt, so this leaves ~16 pt of breathing room
+    /// between controls and the edge you actually see.
+    static let sideInset: CGFloat = 30
+}
+
 enum Palette {
     static let surface = Color.white.opacity(0.07)
     static let surfaceHover = Color.white.opacity(0.11)
@@ -12,7 +19,8 @@ enum Palette {
     static let primaryText = Color.white.opacity(0.94)
     static let secondaryText = Color.white.opacity(0.52)
     static let tertiaryText = Color.white.opacity(0.32)
-    static let noteAccent = Color(red: 1.0, green: 0.78, blue: 0.32)
+    /// Follows the accent colour chosen in Settings.
+    @MainActor static var noteAccent: Color { AppSettings.shared.accent.color }
 }
 
 extension AnyTransition {

@@ -39,7 +39,7 @@ struct DropZoneView: View {
         }
         .scaleEffect(targeted ? 1.015 : 1)
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: targeted)
-        .padding(EdgeInsets(top: 8, leading: 16, bottom: 16, trailing: 16))
+        .padding(EdgeInsets(top: 8, leading: Layout.sideInset, bottom: 16, trailing: Layout.sideInset))
         .frame(width: model.shapeSize(for: .dropZone).width,
                height: model.shapeSize(for: .dropZone).height - model.notchSize.height)
     }

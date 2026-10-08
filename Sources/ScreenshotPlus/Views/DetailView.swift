@@ -21,7 +21,7 @@ struct DetailView: View {
 
         HStack(alignment: .top, spacing: 16) {
             previewPane
-                .frame(width: 320)
+                .frame(width: (size.width * 0.5).rounded())
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
@@ -56,7 +56,7 @@ struct DetailView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(EdgeInsets(top: 8, leading: 18, bottom: 16, trailing: 18))
+        .padding(EdgeInsets(top: 8, leading: Layout.sideInset, bottom: 16, trailing: Layout.sideInset))
         .frame(width: size.width, height: size.height - model.notchSize.height, alignment: .top)
         .onAppear {
             title = shot.title
@@ -79,13 +79,17 @@ struct DetailView: View {
 
     private var dragHint: String {
         guard shot.hasNote else { return "Drag into any app" }
-        if Preferences.includeNoteTextInDrag { return "Drag into any app — the note comes along" }
-        return Preferences.copyNoteOnDrag ? "Drag into any app — the note is copied for ⌘V" : "Drag into any app"
+        if AppSettings.shared.includeNoteTextInDrag { return "Drag into any app — the note comes along" }
+        return AppSettings.shared.copyNoteOnDrag ? "Drag into any app — the note is copied for ⌘V" : "Drag into any app"
     }
 
     private var metadata: String {
         let date = shot.createdAt.formatted(.dateTime.month(.abbreviated).day()) + ", "
             + shot.createdAt.formatted(date: .omitted, time: .shortened)
+        if let maxAge = AppSettings.shared.expiry.maxAge {
+            let expires = shot.createdAt.addingTimeInterval(maxAge)
+            return "\(date) · expires " + expires.formatted(.relative(presentation: .numeric, unitsStyle: .wide))
+        }
         return "\(date) · \(shot.pixelWidth)×\(shot.pixelHeight)"
     }
 

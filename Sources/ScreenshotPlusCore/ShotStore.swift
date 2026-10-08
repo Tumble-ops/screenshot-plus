@@ -156,15 +156,37 @@ public final class ShotStore {
     }
 
     /// Moves the image to the Trash (recoverable) and forgets the entry.
-    public func delete(_ id: UUID) {
+    ///
+    /// `keepDragCopy`: leave the title-named copy that was just dragged into another
+    /// app in place. Some destinations only receive a path and read the file later
+    /// (Terminal → Claude Code reads it when the message is sent). It is a hard
+    /// link, so it survives the original going to the Trash, and is pruned after a day.
+    public func delete(_ id: UUID, keepDragCopy: Bool = false) {
         guard let index = shots.firstIndex(where: { $0.id == id }) else { return }
         let shot = shots.remove(at: index)
-        thumbnailCache.removeObject(forKey: id.uuidString as NSString)
+        removeFiles(of: shot, keepDragCopy: keepDragCopy)
+        persist()
+    }
+
+    /// Trashes every screenshot saved before `cutoff`. Returns how many were removed.
+    @discardableResult
+    public func deleteShots(olderThan cutoff: Date) -> Int {
+        let expired = shots.filter { $0.createdAt < cutoff }
+        guard !expired.isEmpty else { return 0 }
+        shots.removeAll { $0.createdAt < cutoff }
+        for shot in expired { removeFiles(of: shot, keepDragCopy: false) }
+        persist()
+        return expired.count
+    }
+
+    private func removeFiles(of shot: Shot, keepDragCopy: Bool) {
+        thumbnailCache.removeObject(forKey: shot.id.uuidString as NSString)
         let fm = FileManager.default
         try? fm.trashItem(at: imageURL(for: shot), resultingItemURL: nil)
-        try? fm.removeItem(at: thumbnailURL(for: id))
-        try? fm.removeItem(at: exportsURL.appendingPathComponent(id.uuidString))
-        persist()
+        try? fm.removeItem(at: thumbnailURL(for: shot.id))
+        if !keepDragCopy {
+            try? fm.removeItem(at: exportsURL.appendingPathComponent(shot.id.uuidString))
+        }
     }
 
     // MARK: - Persistence
@@ -215,10 +237,13 @@ public final class ShotStore {
     private func pruneExports() {
         let fm = FileManager.default
         let known = Set(shots.map(\.id.uuidString))
-        let cutoff = Date().addingTimeInterval(-7 * 24 * 3600)
+        let weekAgo = Date().addingTimeInterval(-7 * 24 * 3600)
+        let dayAgo = Date().addingTimeInterval(-24 * 3600)
         for folder in (try? fm.contentsOfDirectory(at: exportsURL, includingPropertiesForKeys: [.contentModificationDateKey])) ?? [] {
             let modified = (try? folder.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
-            if !known.contains(folder.lastPathComponent) || modified < cutoff {
+            // Copies of removed screenshots get a day's grace in case a destination reads them late.
+            let orphaned = !known.contains(folder.lastPathComponent)
+            if modified < weekAgo || (orphaned && modified < dayAgo) {
                 try? fm.removeItem(at: folder)
             }
         }

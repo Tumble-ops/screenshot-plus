@@ -9,10 +9,12 @@ struct NotchMetrics: Equatable {
     /// Top edge of the screen.
     var top: CGFloat
 
-    /// The display the notch UI lives on: the built-in notched display if present,
-    /// otherwise the primary (menu bar) display.
+    /// The display the notch UI lives on: by default the built-in notched display if
+    /// present, otherwise (or when chosen in Settings) the primary menu bar display.
+    @MainActor
     static func preferredScreen() -> NSScreen? {
-        NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens.first
+        if AppSettings.shared.display == .primary { return NSScreen.screens.first }
+        return NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens.first
     }
 
     static func measure(_ screen: NSScreen) -> NotchMetrics {

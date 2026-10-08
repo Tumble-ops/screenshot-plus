@@ -32,11 +32,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(loginItem)
         menu.addItem(.separator())
         menu.addItem(item("Show Library in Finder", #selector(revealLibrary)))
+        menu.addItem(item("Settings…", #selector(openSettings), key: ","))
         menu.addItem(.separator())
         menu.addItem(item("Quit Screenshot+", #selector(quit), key: "q"))
         for entry in [copyNoteItem, includeTextItem, loginItem] { entry.target = self }
         includeTextItem.toolTip = "Drags the note as text next to the image. Apps that only accept images ignore it; the clipboard copy covers those."
         statusItem.menu = menu
+        statusItem.isVisible = AppSettings.shared.showMenuBarIcon
+        NotificationCenter.default.addObserver(self, selector: #selector(settingsChanged),
+                                               name: AppSettings.didChange, object: nil)
     }
 
     private func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
@@ -46,8 +50,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        copyNoteItem.state = Preferences.copyNoteOnDrag ? .on : .off
-        includeTextItem.state = Preferences.includeNoteTextInDrag ? .on : .off
+        copyNoteItem.state = AppSettings.shared.copyNoteOnDrag ? .on : .off
+        includeTextItem.state = AppSettings.shared.includeNoteTextInDrag ? .on : .off
         loginItem.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
@@ -58,9 +62,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         notch.model.pasteFromClipboard()
     }
 
-    @objc private func toggleCopyNote() { Preferences.copyNoteOnDrag.toggle() }
+    @objc private func toggleCopyNote() { AppSettings.shared.copyNoteOnDrag.toggle() }
 
-    @objc private func toggleIncludeText() { Preferences.includeNoteTextInDrag.toggle() }
+    @objc private func toggleIncludeText() { AppSettings.shared.includeNoteTextInDrag.toggle() }
+
+    @objc private func openSettings() { notch.openSettings() }
+
+    @objc private func settingsChanged() {
+        statusItem.isVisible = AppSettings.shared.showMenuBarIcon
+    }
 
     @objc private func toggleLaunchAtLogin() {
         do {

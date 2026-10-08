@@ -35,6 +35,21 @@ final class DebugHooks: NSObject {
         switch verb {
         case "open":
             controller.openFromMenu()
+        case "settings":
+            controller.openSettings()
+        case "set":
+            // set:key=value for quick visual checks, e.g. set:surface=midnight
+            let pair = argument.split(separator: "=").map(String.init)
+            guard pair.count == 2 else { return }
+            let settings = AppSettings.shared
+            switch pair[0] {
+            case "accent": settings.accent = AppSettings.Accent(rawValue: pair[1]) ?? settings.accent
+            case "surface": settings.surface = AppSettings.Surface(rawValue: pair[1]) ?? settings.surface
+            case "size": settings.panelSize = AppSettings.PanelSize(rawValue: pair[1]) ?? settings.panelSize
+            case "remove": settings.removeAfterDragOut = pair[1] == "on"
+            case "expiry": settings.expiry = AppSettings.Expiry(rawValue: pair[1]) ?? settings.expiry
+            default: break
+            }
         case "freeze":
             controller.debugFreeze = argument != "off"
         case "collapse":
@@ -123,6 +138,12 @@ final class DebugHooks: NSObject {
             model.showToast(argument == "note" ? .noteCopied : .saved)
         case "notice":
             model.showNotice("doc.on.clipboard.fill", "Note copied — paste with ⌘V")
+        case "send":
+            // Simulates a completed drag-out of the newest screenshot.
+            if let first = model.store.shots.first {
+                model.dragDidBegin(first)
+                model.dragDidEnd(operation: .copy)
+            }
         case "drag-begin":
             if let first = model.store.shots.first { model.dragDidBegin(first) }
         case "dump":
