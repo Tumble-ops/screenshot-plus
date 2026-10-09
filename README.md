@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/16901d96-31a6-45b3-96db-2cbbbaf84c35
+
 # Screenshot+
 
 **A screenshot inbox that lives in your MacBook's notch.**
