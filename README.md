@@ -9,14 +9,6 @@ https://github.com/user-attachments/assets/16901d96-31a6-45b3-96db-2cbbbaf84c35
 Take a screenshot, drag it onto the notch, add a note or AI prompt, done. Later, hover the notch, find it, and drag it straight into Claude, ChatGPT, Cursor, Slack, or any other app — the note comes along.
 
 <p align="center">
-  <a href="https://github.com/Tumble-ops/screenshot-plus/raw/main/docs/launch-video.mp4">
-    <img src="docs/images/launch-video-poster.jpg" width="720" alt="Screenshot+ launch video">
-  </a>
-  <br>
-  <sub>▶ <a href="https://github.com/Tumble-ops/screenshot-plus/raw/main/docs/launch-video.mp4">Launch video</a> — 21 s with sound (MP4, 2.5 MB)</sub>
-</p>
-
-<p align="center">
   <img src="docs/images/library.png" width="680" alt="The Screenshot+ library open below the notch">
 </p>
 
