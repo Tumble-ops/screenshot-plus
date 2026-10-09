@@ -1,12 +1,10 @@
-
-
-https://github.com/user-attachments/assets/16901d96-31a6-45b3-96db-2cbbbaf84c35
-
 # Screenshot+
 
 **A screenshot inbox that lives in your MacBook's notch.**
 
 Take a screenshot, drag it onto the notch, add a note or AI prompt, done. Later, hover the notch, find it, and drag it straight into Claude, ChatGPT, Cursor, Slack, or any other app — the note comes along.
+
+https://github.com/user-attachments/assets/16901d96-31a6-45b3-96db-2cbbbaf84c35
 
 <p align="center">
   <img src="docs/images/library.png" width="680" alt="The Screenshot+ library open below the notch">
