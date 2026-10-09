@@ -73,7 +73,11 @@ struct Draft {
 struct InlineNotice: Equatable {
     var symbol: String
     var text: String
+    var actionTitle: String?
+    var action: (() -> Void)?
     var id = UUID()
+
+    static func == (lhs: InlineNotice, rhs: InlineNotice) -> Bool { lhs.id == rhs.id }
 }
 
 @MainActor
@@ -206,12 +210,13 @@ final class NotchModel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.6, execute: work)
     }
 
-    func showNotice(_ symbol: String, _ text: String) {
+    func showNotice(_ symbol: String, _ text: String, actionTitle: String? = nil, action: (() -> Void)? = nil) {
         noticeWork?.cancel()
-        notice = InlineNotice(symbol: symbol, text: text)
+        notice = InlineNotice(symbol: symbol, text: text, actionTitle: actionTitle, action: action)
         let work = DispatchWorkItem { [weak self] in self?.notice = nil }
         noticeWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2, execute: work)
+        // Give people time to reach an Undo button.
+        DispatchQueue.main.asyncAfter(deadline: .now() + (action == nil ? 2.2 : 5), execute: work)
     }
 
     // MARK: - Saving
@@ -311,9 +316,18 @@ final class NotchModel {
     }
 
     func delete(_ shot: Shot) {
-        store.delete(shot.id)
+        let deleted = withAnimation(.notch) { store.delete(shot.id) }
         mode = .library
-        showNotice("trash", "Moved to Trash")
+        guard let deleted, deleted.trashedURL != nil else {
+            showNotice("trash", "Moved to Trash")
+            return
+        }
+        showNotice("trash", "Moved to Trash", actionTitle: "Undo") { [weak self] in
+            guard let self else { return }
+            let restored = withAnimation(.notch) { self.store.restore(deleted) }
+            self.notice = nil
+            if !restored { self.showNotice("exclamationmark.triangle.fill", "Couldn’t restore — check the Trash") }
+        }
     }
 
     func revealInFinder(_ shot: Shot) {

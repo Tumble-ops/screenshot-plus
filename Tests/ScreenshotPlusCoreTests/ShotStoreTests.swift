@@ -15,7 +15,8 @@ final class ShotStoreTests: XCTestCase {
     }
 
     private func makeStore() -> ShotStore {
-        ShotStore(baseURL: root.appendingPathComponent("Library"), cachesURL: root.appendingPathComponent("Caches"))
+        ShotStore(baseURL: root.appendingPathComponent("Library"), cachesURL: root.appendingPathComponent("Caches"),
+                  trashURL: root.appendingPathComponent("Trash"))
     }
 
     private func samplePNG() -> ImportedImage {
@@ -68,5 +69,22 @@ final class ShotStoreTests: XCTestCase {
         store.delete(shot.id)
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: dragged.path))
+    }
+
+    func testDeleteCanBeUndone() {
+        let store = makeStore()
+        let older = store.add([samplePNG()], note: "older", date: Date().addingTimeInterval(-60)).first!
+        let shot = store.add([samplePNG()], note: "undo me").first!
+        let original = try? Data(contentsOf: store.imageURL(for: shot))
+
+        let deleted = store.delete(shot.id)
+        XCTAssertEqual(store.shots.map(\.id), [older.id])
+        XCTAssertNotNil(deleted?.trashedURL)
+
+        XCTAssertTrue(store.restore(deleted!))
+        XCTAssertEqual(store.shots.map(\.id), [shot.id, older.id], "restored in date order")
+        XCTAssertEqual(try? Data(contentsOf: store.imageURL(for: shot)), original)
+        XCTAssertNotNil(store.thumbnail(for: shot))
+        XCTAssertFalse(store.restore(deleted!), "can't restore twice")
     }
 }

@@ -23,6 +23,8 @@ public final class ShotStore {
     public let thumbnailsURL: URL
     public let exportsURL: URL
     public let incomingURL: URL
+    /// Where deleted images go. nil = the user's Trash (tests pass a private folder).
+    private let trashURL: URL?
 
     @ObservationIgnored private var nextSequence = 1
     @ObservationIgnored private let thumbnailCache = NSCache<NSString, NSImage>()
@@ -30,7 +32,8 @@ public final class ShotStore {
 
     public static let thumbnailPixelSize = 480
 
-    public init(baseURL: URL? = nil, cachesURL: URL? = nil) {
+    public init(baseURL: URL? = nil, cachesURL: URL? = nil, trashURL: URL? = nil) {
+        self.trashURL = trashURL
         let fm = FileManager.default
         let support = baseURL ?? fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Screenshot+", isDirectory: true)
@@ -161,11 +164,30 @@ public final class ShotStore {
     /// app in place. Some destinations only receive a path and read the file later
     /// (Terminal → Claude Code reads it when the message is sent). It is a hard
     /// link, so it survives the original going to the Trash, and is pruned after a day.
-    public func delete(_ id: UUID, keepDragCopy: Bool = false) {
-        guard let index = shots.firstIndex(where: { $0.id == id }) else { return }
+    @discardableResult
+    public func delete(_ id: UUID, keepDragCopy: Bool = false) -> DeletedShot? {
+        guard let index = shots.firstIndex(where: { $0.id == id }) else { return nil }
         let shot = shots.remove(at: index)
-        removeFiles(of: shot, keepDragCopy: keepDragCopy)
+        let trashed = removeFiles(of: shot, keepDragCopy: keepDragCopy)
         persist()
+        return DeletedShot(shot: shot, trashedURL: trashed)
+    }
+
+    /// Undoes `delete`: brings the image back from the Trash and re-adds the entry.
+    @discardableResult
+    public func restore(_ deleted: DeletedShot) -> Bool {
+        guard shot(deleted.shot.id) == nil, let trashed = deleted.trashedURL else { return false }
+        let destination = imageURL(for: deleted.shot)
+        do {
+            try FileManager.default.moveItem(at: trashed, to: destination)
+        } catch {
+            return false
+        }
+        writeThumbnail(from: destination, to: thumbnailURL(for: deleted.shot.id))
+        let index = shots.firstIndex { $0.createdAt <= deleted.shot.createdAt } ?? shots.count
+        shots.insert(deleted.shot, at: index)
+        persist()
+        return true
     }
 
     /// Trashes every screenshot saved before `cutoff`. Returns how many were removed.
@@ -174,19 +196,28 @@ public final class ShotStore {
         let expired = shots.filter { $0.createdAt < cutoff }
         guard !expired.isEmpty else { return 0 }
         shots.removeAll { $0.createdAt < cutoff }
-        for shot in expired { removeFiles(of: shot, keepDragCopy: false) }
+        for shot in expired { _ = removeFiles(of: shot, keepDragCopy: false) }
         persist()
         return expired.count
     }
 
-    private func removeFiles(of shot: Shot, keepDragCopy: Bool) {
+    /// Returns where the image landed in the Trash (for undo).
+    private func removeFiles(of shot: Shot, keepDragCopy: Bool) -> URL? {
         thumbnailCache.removeObject(forKey: shot.id.uuidString as NSString)
         let fm = FileManager.default
-        try? fm.trashItem(at: imageURL(for: shot), resultingItemURL: nil)
+        var trashed: NSURL?
+        if let trashURL {
+            let target = trashURL.appendingPathComponent(shot.fileName)
+            try? fm.createDirectory(at: trashURL, withIntermediateDirectories: true)
+            if (try? fm.moveItem(at: imageURL(for: shot), to: target)) != nil { trashed = target as NSURL }
+        } else {
+            try? fm.trashItem(at: imageURL(for: shot), resultingItemURL: &trashed)
+        }
         try? fm.removeItem(at: thumbnailURL(for: shot.id))
         if !keepDragCopy {
             try? fm.removeItem(at: exportsURL.appendingPathComponent(shot.id.uuidString))
         }
+        return trashed as URL?
     }
 
     // MARK: - Persistence

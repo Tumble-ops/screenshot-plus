@@ -114,6 +114,10 @@ struct ShotCard: View {
     let shot: Shot
     var thumbnailHeight: CGFloat = 80
     @State private var hovering = false
+    @State private var hoveringDelete = false
+
+    /// Hit area of the hover delete button (top-left of the thumbnail).
+    private static let deleteRect = CGRect(x: 3, y: 3, width: 28, height: 28)
 
     var body: some View {
         let thumbnail = model.store.thumbnail(for: shot)
@@ -142,6 +146,20 @@ struct ShotCard: View {
                     NoteBadge().padding(5)
                 }
             }
+            .overlay(alignment: .topLeading) {
+                if hovering {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(hoveringDelete ? Color.white : Color.white.opacity(0.85))
+                        .frame(width: 20, height: 20)
+                        .background(Circle().fill(hoveringDelete ? Color(red: 1, green: 0.32, blue: 0.3) : Color.black.opacity(0.65)))
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.18)))
+                        .scaleEffect(hoveringDelete ? 1.12 : 1)
+                        .padding(7)
+                        .transition(.scale(scale: 0.5).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hoveringDelete)
             .shadow(color: .black.opacity(hovering ? 0.6 : 0), radius: 8, y: 3)
 
             Text(shot.title)
@@ -162,7 +180,10 @@ struct ShotCard: View {
                 onClick: { model.showDetail(shot.id) },
                 onHover: { hovering = $0 },
                 onBegin: { model.dragDidBegin(shot) },
-                onEnd: { operation, _ in model.dragDidEnd(operation: operation) }
+                onEnd: { operation, _ in model.dragDidEnd(operation: operation) },
+                accessoryRect: Self.deleteRect,
+                onAccessory: { model.delete(shot) },
+                onAccessoryHover: { hoveringDelete = $0 }
             )
         )
         .help(shot.hasNote ? shot.note : shot.title)

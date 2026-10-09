@@ -115,6 +115,18 @@ struct NotchRootView: View {
                     .foregroundStyle(Palette.primaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+                if let title = notice.actionTitle, let action = notice.action {
+                    Button(action: action) {
+                        Text(title)
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundStyle(Palette.noteAccent)
+                            .padding(.horizontal, 7)
+                            .frame(height: 20)
+                            .background(Capsule().fill(Palette.noteAccent.opacity(0.16)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.horizontal, 12)
             .frame(width: earWidth, height: notch.height)

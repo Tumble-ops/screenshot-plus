@@ -25,6 +25,8 @@ Requires macOS 14+, Xcode 16+ toolchain. No accounts, network, or permissions.
 | On-device titles via Apple's NaturalLanguage ("Fix the alignment of these buttons…" → "Fix Button Alignment") | `ScreenshotPlusCore/TitleGenerator.swift` |
 | Storage: `~/Library/Application Support/Screenshot+/` (`library.json`, original images untouched, thumbnails) | `ScreenshotPlusCore/ShotStore.swift` |
 
+Hover a thumbnail for a trash button (top-left); deletions go to the Trash with an Undo beside the notch.
+
 States: collapsed → drop zone → compose → library → detail, plus "ears" toasts (Saved / Note copied) and an unsaved-draft indicator.
 Pointer tracking uses NSEvent mouse monitors (no Accessibility permission) and only polls while expanded, so it's idle at rest.
 Without a notch (external display, clamshell) a small notch-shaped pill appears at the top centre of the main display.

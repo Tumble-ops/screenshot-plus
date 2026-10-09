@@ -17,6 +17,12 @@ struct DragSource: NSViewRepresentable {
     var onHover: (Bool) -> Void = { _ in }
     var onBegin: () -> Void = {}
     var onEnd: (_ operation: NSDragOperation, _ endedInsideWindow: Bool) -> Void = { _, _ in }
+    /// A small button region drawn by SwiftUI underneath (top-left origin, in points).
+    /// Clicks there call `onAccessory` instead of opening or dragging. The overlay owns
+    /// all mouse events, so the button can't handle them itself.
+    var accessoryRect: CGRect?
+    var onAccessory: () -> Void = {}
+    var onAccessoryHover: (Bool) -> Void = { _ in }
 
     func makeNSView(context: Context) -> DragSourceView {
         let view = DragSourceView()
@@ -34,17 +40,34 @@ final class DragSourceView: NSView, NSDraggingSource {
     private var mouseDownEvent: NSEvent?
     private var dragStarted = false
     private var trackingArea: NSTrackingArea?
+    private var accessoryPressed = false
+    private var overAccessory = false {
+        didSet { if overAccessory != oldValue { configuration?.onAccessoryHover(overAccessory) } }
+    }
+
+    /// The accessory rect converted from SwiftUI's top-left coordinates.
+    private var accessoryFrame: NSRect? {
+        guard let rect = configuration?.accessoryRect else { return nil }
+        return NSRect(x: rect.minX, y: bounds.height - rect.maxY, width: rect.width, height: rect.height)
+    }
+
+    private func isOverAccessory(_ event: NSEvent) -> Bool {
+        guard let frame = accessoryFrame else { return false }
+        return frame.contains(convert(event.locationInWindow, from: nil))
+    }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let trackingArea { removeTrackingArea(trackingArea) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+        let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
                                   owner: self, userInfo: nil)
         addTrackingArea(area)
         trackingArea = area
     }
+
+    override func mouseMoved(with event: NSEvent) { overAccessory = isOverAccessory(event) }
 
     // Let the gallery scroll when the pointer is over a thumbnail.
     override func scrollWheel(with event: NSEvent) {
@@ -55,20 +78,33 @@ final class DragSourceView: NSView, NSDraggingSource {
         }
     }
 
-    override func mouseEntered(with event: NSEvent) { configuration?.onHover(true) }
-    override func mouseExited(with event: NSEvent) { configuration?.onHover(false) }
+    override func mouseEntered(with event: NSEvent) {
+        configuration?.onHover(true)
+        overAccessory = isOverAccessory(event)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        overAccessory = false
+        configuration?.onHover(false)
+    }
 
     override func resetCursorRects() {
         addCursorRect(bounds, cursor: .openHand)
+        if let frame = accessoryFrame { addCursorRect(frame, cursor: .arrow) }
     }
 
     override func mouseDown(with event: NSEvent) {
-        mouseDownEvent = event
         dragStarted = false
+        if isOverAccessory(event) {
+            accessoryPressed = true
+            mouseDownEvent = nil
+            return
+        }
+        mouseDownEvent = event
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let down = mouseDownEvent, !dragStarted else { return }
+        guard !accessoryPressed, let down = mouseDownEvent, !dragStarted else { return }
         let dx = event.locationInWindow.x - down.locationInWindow.x
         let dy = event.locationInWindow.y - down.locationInWindow.y
         guard dx * dx + dy * dy > 16, let payload = configuration?.payload() else { return }
@@ -94,6 +130,11 @@ final class DragSourceView: NSView, NSDraggingSource {
     }
 
     override func mouseUp(with event: NSEvent) {
+        if accessoryPressed {
+            accessoryPressed = false
+            if isOverAccessory(event) { configuration?.onAccessory() }
+            return
+        }
         if mouseDownEvent != nil, !dragStarted { configuration?.onClick() }
         mouseDownEvent = nil
     }

@@ -38,6 +38,12 @@ public struct Shot: Codable, Identifiable, Hashable, Sendable {
     public var fileExtension: String { (fileName as NSString).pathExtension }
 }
 
+/// A screenshot that was just moved to the Trash, kept so the deletion can be undone.
+public struct DeletedShot: Sendable {
+    public let shot: Shot
+    public let trashedURL: URL?
+}
+
 /// On-disk representation of the whole library (`library.json`).
 struct LibraryFile: Codable {
     var version: Int = 1
