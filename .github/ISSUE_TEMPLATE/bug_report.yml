@@ -1,0 +1,38 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: Drag source or destination app
+      description: If this is about dragging, which app were you dragging from or into?
+      placeholder: e.g. screenshot thumbnail → Claude desktop app
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+      placeholder: e.g. MacBook Pro 14" M3, macOS 15.2
+    validations:
+      required: true
+  - type: dropdown
+    id: display
+    attributes:
+      label: Display
+      options:
+        - Built-in display with a notch
+        - External display / no notch
+        - Both
+  - type: input
+    id: version
+    attributes:
+      label: Screenshot+ version
+      description: Shown in Finder → Get Info on the app
+      placeholder: e.g. 1.0.0

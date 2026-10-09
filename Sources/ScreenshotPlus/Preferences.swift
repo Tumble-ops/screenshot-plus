@@ -9,7 +9,7 @@ import SwiftUI
 @Observable
 final class AppSettings {
     static let shared = AppSettings()
-    static let didChange = Notification.Name("app.screenshotplus.settingsChanged")
+    static let didChange = Notification.Name("io.github.tumble-ops.screenshotplus.settingsChanged")
 
     @ObservationIgnored private let defaults = UserDefaults.standard
 

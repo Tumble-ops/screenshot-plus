@@ -18,7 +18,7 @@ final class DebugHooks: NSObject {
         self.hostingView = hostingView
         super.init()
         DistributedNotificationCenter.default().addObserver(
-            self, selector: #selector(received(_:)), name: Notification.Name("app.screenshotplus.debug"), object: nil,
+            self, selector: #selector(received(_:)), name: Notification.Name("io.github.tumble-ops.screenshotplus.debug"), object: nil,
             suspensionBehavior: .deliverImmediately
         )
     }
@@ -60,7 +60,7 @@ final class DebugHooks: NSObject {
             model.isDropTargeted = argument == "targeted"
         case "drop-file", "drop-data", "drop-promise":
             model.awaitingPointerEntry = true
-            let pasteboard = NSPasteboard(name: NSPasteboard.Name("app.screenshotplus.debug.drag"))
+            let pasteboard = NSPasteboard(name: NSPasteboard.Name("io.github.tumble-ops.screenshotplus.debug.drag"))
             pasteboard.clearContents()
             let url = URL(fileURLWithPath: argument)
             switch verb {
@@ -113,7 +113,7 @@ final class DebugHooks: NSObject {
             // Write exactly what a drag would carry to a named pasteboard, and save the note pill.
             guard let shot = model.store.shots.first(where: \.hasNote), let thumb = model.store.thumbnail(for: shot) else { return }
             let payload = model.dragPayload(for: shot, image: thumb)
-            let pasteboard = NSPasteboard(name: NSPasteboard.Name("app.screenshotplus.debug.payload"))
+            let pasteboard = NSPasteboard(name: NSPasteboard.Name("io.github.tumble-ops.screenshotplus.debug.payload"))
             pasteboard.clearContents()
             pasteboard.writeObjects([payload.writer] + payload.companions.map(\.writer))
             for (index, item) in (pasteboard.pasteboardItems ?? []).enumerated() {

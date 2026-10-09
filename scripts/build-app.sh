@@ -3,15 +3,18 @@
 #   scripts/build-app.sh            release build
 #   scripts/build-app.sh debug      debug build (enables test hooks)
 #   scripts/build-app.sh --install  release build, copied to /Applications and launched
+#   scripts/build-app.sh --zip      release build, zipped to build/Screenshot+.zip for a GitHub release
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 CONFIG=release
 INSTALL=0
+ZIP=0
 for arg in "$@"; do
   case "$arg" in
     debug) CONFIG=debug ;;
     --install) INSTALL=1 ;;
+    --zip) ZIP=1 ;;
   esac
 done
 
@@ -33,6 +36,12 @@ cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # Ad-hoc signature: required for Launch at Login (SMAppService) and keeps Gatekeeper calm locally.
 codesign --force --sign - "$APP"
 echo "Built $APP"
+
+if [ "$ZIP" = 1 ]; then
+  rm -f "build/Screenshot+.zip"
+  ditto -c -k --keepParent "$APP" "build/Screenshot+.zip"
+  echo "Zipped build/Screenshot+.zip"
+fi
 
 if [ "$INSTALL" = 1 ]; then
   DEST=/Applications
