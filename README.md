@@ -6,10 +6,10 @@ Take a screenshot, drag it onto the notch, add a note or AI prompt, done. Later,
 
 <p align="center">
   <a href="https://github.com/Tumble-ops/screenshot-plus/raw/main/docs/launch-video.mp4">
-    <img src="docs/images/launch-video-poster.jpg" width="720" alt="Watch the 20-second Screenshot+ launch video">
+    <img src="docs/images/launch-video-poster.jpg" width="720" alt="Screenshot+ launch video">
   </a>
   <br>
-  <sub>▶ <a href="https://github.com/Tumble-ops/screenshot-plus/raw/main/docs/launch-video.mp4">Watch the 20-second video</a> (with sound)</sub>
+  <sub>▶ <a href="https://github.com/Tumble-ops/screenshot-plus/raw/main/docs/launch-video.mp4">Launch video</a> — 21 s with sound (MP4, 2.5 MB)</sub>
 </p>
 
 <p align="center">
