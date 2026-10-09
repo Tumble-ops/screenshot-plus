@@ -125,6 +125,8 @@ final class DebugHooks: NSObject {
             }
         case "note":
             model.draft?.note = argument
+        case "cancel":
+            model.cancelDraft()
         case "save":
             model.saveDraft()
         case "detail":
